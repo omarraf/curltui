@@ -3,21 +3,30 @@ package curl
 import "strings"
 
 // BuildCurlCommand converts a Request struct to a valid curl command string
-// TODO: Implement conversion of Request struct to curl command string
-//   - Start with "curl" base command
-//   - Add -X flag for HTTP method (if not GET)
-//   - Add -H flags for each header in the format "Key: Value"
-//   - Add -d, --data, or --data-raw flag for request body
-//   - Properly escape/quote arguments for shell safety
-//   - Handle special characters in URL, headers, and body
-//   - Example output: curl -X POST -H "Content-Type: application/json" -d '{"key":"value"}' https://api.example.com
 func BuildCurlCommand(req Request) string {
 	var parts []string
 	parts = append(parts, "curl")
 
-	// Basic stub implementation - returns minimal curl command
+	// Always add -X flag with method
+	parts = append(parts, "-X", req.Method)
+
+	// Add headers
+	for key, value := range req.Headers {
+		// Escape double quotes in header values
+		escapedValue := strings.ReplaceAll(value, `"`, `\"`)
+		parts = append(parts, "-H", `"`+key+": "+escapedValue+`"`)
+	}
+
+	// Add body if non-empty
+	if req.Body != "" {
+		// Use single quotes for body and escape single quotes within
+		escapedBody := strings.ReplaceAll(req.Body, `'`, `'\''`)
+		parts = append(parts, "-d", `'`+escapedBody+`'`)
+	}
+
+	// Add URL (quoted)
 	if req.URL != "" {
-		parts = append(parts, req.URL)
+		parts = append(parts, `"`+req.URL+`"`)
 	}
 
 	return strings.Join(parts, " ")

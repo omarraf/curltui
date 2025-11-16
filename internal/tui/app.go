@@ -6,26 +6,45 @@ import (
 )
 
 // NewModel creates and initializes a new Model
-// TODO: Implement initialization logic
-//   - Create a new Request with default values (GET method, empty URL)
-//   - If importCmd is provided, parse it using curl.ParseCurlCommand
-//   - Handle parsing errors gracefully (store in model.err)
-//   - Set focusedField to 0 (first field - method selector)
-//   - Initialize empty Response
-//   - Set initial dimensions (will be updated on first WindowSizeMsg)
 func NewModel(importCmd string) Model {
-	req := curl.NewRequest()
-	resp := http.NewResponse()
-
-	// TODO: If importCmd is not empty, parse it and populate req
-	// TODO: Handle any parsing errors
-
-	return Model{
-		request:      req,
-		response:     resp,
-		focusedField: 0,
-		err:          nil,
-		width:        0,
-		height:       0,
+	m := Model{
+		method:          "GET",
+		url:             "",
+		headers:         []HeaderPair{},
+		body:            "",
+		focusedField:    URLField, // Start on URL field
+		cursorPos:       0,
+		headerIndex:     0,
+		editing:         true, // Start in editing mode so user can type immediately
+		loading:         false,
+		pasteMode:       false,
+		pasteBuffer:     "",
+		responseTab:     0,
+		bodyScroll:      0,
+		responseScroll:  0,
+		headerEditField: 0,
+		response:        http.NewResponse(),
+		err:             nil,
+		width:           0,
+		height:          0,
 	}
+
+	// If importCmd is provided, parse it and populate fields
+	if importCmd != "" {
+		req, err := curl.ParseCurlCommand(importCmd)
+		if err != nil {
+			m.err = err
+		} else {
+			m.method = req.Method
+			m.url = req.URL
+			m.body = req.Body
+
+			// Convert headers map to slice
+			for key, value := range req.Headers {
+				m.headers = append(m.headers, HeaderPair{Key: key, Value: value})
+			}
+		}
+	}
+
+	return m
 }
