@@ -121,8 +121,8 @@ func renderURLField(m Model, width int) string {
 	}
 
 	title := "URL"
-	if focused && m.editing {
-		title = "URL (editing)"
+	if focused {
+		title = "URL (type to edit, Tab to navigate)"
 	}
 
 	content := fmt.Sprintf("%s\n%s", dimStyle.Render(title), url)
@@ -181,8 +181,8 @@ func renderBodyField(m Model, width, height int) string {
 
 	var content strings.Builder
 	title := "Body"
-	if focused && m.editing {
-		title = "Body (editing)"
+	if focused {
+		title = "Body (type to edit, Enter for newlines)"
 	}
 	content.WriteString(dimStyle.Render(title) + "\n\n")
 
@@ -279,17 +279,16 @@ func renderPasteMode(m Model) string {
 
 // renderFooter renders the help footer
 func renderFooter(m Model) string {
-	helpText := "Tab:navigate "
+	var helpText string
 	if m.focusedField == MethodField {
-		helpText += "←→:change method "
+		helpText = "←/→:change method • Tab:next field • Ctrl+E:execute • Ctrl+P:paste curl • q:quit"
 	} else if m.focusedField == URLField {
-		helpText += "Enter:edit "
+		helpText = "Type to edit URL • Tab:next field • Ctrl+E:execute • Ctrl+P:paste curl • q:quit"
 	} else if m.focusedField == HeadersField {
-		helpText += "a:add e:edit d:delete "
+		helpText = "a:add header • e:edit • d:delete • j/k:navigate • Tab:next field • Ctrl+E:execute • q:quit"
 	} else if m.focusedField == BodyField {
-		helpText += "Enter:edit "
+		helpText = "Type to edit body • Enter:newline • Tab:next field • Ctrl+E:execute • q:quit"
 	}
-	helpText += "Ctrl+E:execute Ctrl+P:paste q:quit"
 
 	return helpStyle.Render(helpText)
 }

@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"strings"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/username/curltui/internal/curl"
 	"github.com/username/curltui/internal/http"
@@ -71,19 +73,33 @@ func handleUpdate(m Model, msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "tab":
 			// Cycle forward through fields
-			if !m.editing {
-				m.focusedField = (m.focusedField + 1) % 4
-				m.cursorPos = 0
-				return m, nil
+			m.editing = false
+			m.focusedField = (m.focusedField + 1) % 4
+			m.cursorPos = 0
+			// Auto-start editing on URL and Body fields
+			if m.focusedField == URLField || m.focusedField == BodyField {
+				m.editing = true
+				m.cursorPos = len(m.url)
+				if m.focusedField == BodyField {
+					m.cursorPos = len(m.body)
+				}
 			}
+			return m, nil
 
 		case "shift+tab":
 			// Cycle backward through fields
-			if !m.editing {
-				m.focusedField = (m.focusedField + 3) % 4 // +3 is same as -1 mod 4
-				m.cursorPos = 0
-				return m, nil
+			m.editing = false
+			m.focusedField = (m.focusedField + 3) % 4 // +3 is same as -1 mod 4
+			m.cursorPos = 0
+			// Auto-start editing on URL and Body fields
+			if m.focusedField == URLField || m.focusedField == BodyField {
+				m.editing = true
+				m.cursorPos = len(m.url)
+				if m.focusedField == BodyField {
+					m.cursorPos = len(m.body)
+				}
 			}
+			return m, nil
 
 		case "esc":
 			// Exit editing mode
@@ -191,51 +207,48 @@ func handleMethodField(m Model, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // handleURLField handles input when URL field is focused
 func handleURLField(m Model, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "enter":
-		m.editing = !m.editing
-		return m, nil
+	// Auto-enable editing when focused on URL field
+	if !m.editing {
+		m.editing = true
+	}
 
+	switch msg.String() {
 	case "backspace":
-		if m.editing && len(m.url) > 0 && m.cursorPos > 0 {
+		if len(m.url) > 0 && m.cursorPos > 0 {
 			m.url = m.url[:m.cursorPos-1] + m.url[m.cursorPos:]
 			m.cursorPos--
 		}
 		return m, nil
 
 	case "delete":
-		if m.editing && m.cursorPos < len(m.url) {
+		if m.cursorPos < len(m.url) {
 			m.url = m.url[:m.cursorPos] + m.url[m.cursorPos+1:]
 		}
 		return m, nil
 
 	case "left":
-		if m.editing && m.cursorPos > 0 {
+		if m.cursorPos > 0 {
 			m.cursorPos--
 		}
 		return m, nil
 
 	case "right":
-		if m.editing && m.cursorPos < len(m.url) {
+		if m.cursorPos < len(m.url) {
 			m.cursorPos++
 		}
 		return m, nil
 
 	case "home", "ctrl+a":
-		if m.editing {
-			m.cursorPos = 0
-		}
+		m.cursorPos = 0
 		return m, nil
 
 	case "end":
-		if m.editing {
-			m.cursorPos = len(m.url)
-		}
+		m.cursorPos = len(m.url)
 		return m, nil
 
 	default:
 		// Add character
-		if m.editing && len(msg.String()) == 1 {
+		if len(msg.String()) == 1 {
 			m.url = m.url[:m.cursorPos] + msg.String() + m.url[m.cursorPos:]
 			m.cursorPos++
 		}
@@ -320,57 +333,81 @@ func handleHeadersField(m Model, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // handleBodyField handles input when body field is focused
 func handleBodyField(m Model, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Auto-enable editing when focused on body field
+	if !m.editing {
+		m.editing = true
+	}
+
 	switch msg.String() {
 	case "enter":
-		if !m.editing {
-			m.editing = true
-		} else {
-			// Add newline
-			m.body = m.body[:m.cursorPos] + "\n" + m.body[m.cursorPos:]
-			m.cursorPos++
-		}
+		// Add newline
+		m.body = m.body[:m.cursorPos] + "\n" + m.body[m.cursorPos:]
+		m.cursorPos++
 		return m, nil
 
 	case "backspace":
-		if m.editing && len(m.body) > 0 && m.cursorPos > 0 {
+		if len(m.body) > 0 && m.cursorPos > 0 {
 			m.body = m.body[:m.cursorPos-1] + m.body[m.cursorPos:]
 			m.cursorPos--
 		}
 		return m, nil
 
 	case "delete":
-		if m.editing && m.cursorPos < len(m.body) {
+		if m.cursorPos < len(m.body) {
 			m.body = m.body[:m.cursorPos] + m.body[m.cursorPos+1:]
 		}
 		return m, nil
 
 	case "left":
-		if m.editing && m.cursorPos > 0 {
+		if m.cursorPos > 0 {
 			m.cursorPos--
 		}
 		return m, nil
 
 	case "right":
-		if m.editing && m.cursorPos < len(m.body) {
+		if m.cursorPos < len(m.body) {
 			m.cursorPos++
 		}
 		return m, nil
 
-	case "home", "ctrl+a":
-		if m.editing {
-			m.cursorPos = 0
+	case "up":
+		// Move cursor to previous line
+		lines := strings.Split(m.body[:m.cursorPos], "\n")
+		if len(lines) > 1 {
+			currentLinePos := len(lines[len(lines)-1])
+			prevLineLen := len(lines[len(lines)-2])
+			m.cursorPos -= currentLinePos + 1 // +1 for newline
+			if currentLinePos > prevLineLen {
+				m.cursorPos -= currentLinePos - prevLineLen
+			}
 		}
 		return m, nil
 
-	case "end":
-		if m.editing {
-			m.cursorPos = len(m.body)
+	case "down":
+		// Move cursor to next line
+		remaining := m.body[m.cursorPos:]
+		lines := strings.Split(remaining, "\n")
+		if len(lines) > 1 {
+			currentLineRemaining := len(lines[0])
+			m.cursorPos += currentLineRemaining + 1 // +1 for newline
+			nextLineLen := len(lines[1])
+			if currentLineRemaining > nextLineLen {
+				m.cursorPos += nextLineLen
+			}
 		}
+		return m, nil
+
+	case "home", "ctrl+a":
+		m.cursorPos = 0
+		return m, nil
+
+	case "end":
+		m.cursorPos = len(m.body)
 		return m, nil
 
 	default:
 		// Add character
-		if m.editing && len(msg.String()) == 1 {
+		if len(msg.String()) == 1 {
 			m.body = m.body[:m.cursorPos] + msg.String() + m.body[m.cursorPos:]
 			m.cursorPos++
 		}

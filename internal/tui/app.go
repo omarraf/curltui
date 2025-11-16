@@ -15,7 +15,7 @@ func NewModel(importCmd string) Model {
 		focusedField:    URLField, // Start on URL field
 		cursorPos:       0,
 		headerIndex:     0,
-		editing:         false,
+		editing:         true, // Start in editing mode so user can type immediately
 		loading:         false,
 		pasteMode:       false,
 		pasteBuffer:     "",
