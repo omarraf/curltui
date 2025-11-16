@@ -105,6 +105,20 @@ func handleUpdate(m Model, msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Exit editing mode
 			m.editing = false
 			return m, nil
+
+		case "1", "2", "3":
+			// Switch response tabs (only when not editing)
+			if !m.editing && m.response.StatusCode != 0 {
+				switch msg.String() {
+				case "1":
+					m.responseTab = 0
+				case "2":
+					m.responseTab = 1
+				case "3":
+					m.responseTab = 2
+				}
+			}
+			return m, nil
 		}
 
 		// Field-specific handling
